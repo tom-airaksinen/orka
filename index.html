@@ -112,6 +112,13 @@ textarea{resize:vertical}
 .inrad input{flex:1; min-width:0}
 .kryss{display:flex; align-items:center; gap:10px; min-height:40px; color:var(--black); font-size:17px}
 .kryss input{width:22px; height:22px; accent-color:var(--penna)}
+.kryss .vaxel{appearance:none; -webkit-appearance:none; flex:none; width:52px; height:32px; border-radius:999px; background:var(--linje); position:relative; margin:0}
+.vaxel::after{content:""; position:absolute; top:3px; left:3px; width:26px; height:26px; border-radius:50%; background:var(--ark)}
+.vaxel:checked{background:var(--penna)}
+.vaxel:checked::after{left:23px}
+.tider{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:10px 0 4px}
+.tider label{display:grid; gap:4px}
+input[type=time]{width:100%; min-height:46px; padding:8px 12px; background:var(--ark); border:1.5px solid var(--linje); border-radius:10px; font-size:17px; font-variant-numeric:tabular-nums; -webkit-appearance:none; appearance:none}
 
 /* Mönster */
 .diagram{display:block; width:100%; height:auto; background:var(--ark); border:1.5px solid var(--black)}
@@ -156,7 +163,7 @@ nav button{background:none; border:0; height:56px; font-weight:500; color:var(--
 nav button:first-child{border-left:0}
 nav button[aria-current=page]{color:var(--penna); font-weight:700; box-shadow:inset 0 3px 0 var(--penna)}
 
-@media (prefers-reduced-motion:no-preference){ .skala button{transition:transform .12s} }
+@media (prefers-reduced-motion:no-preference){ .skala button{transition:transform .12s} .vaxel::after{transition:left .15s} }
 </style>
 </head>
 <body>

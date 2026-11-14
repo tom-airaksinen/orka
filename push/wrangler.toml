@@ -1,0 +1,22 @@
+name = "orka-push"
+main = "src/index.js"
+compatibility_date = "2026-10-10"
+# Inga förhandsadresser: varje gammal version skulle annars stå kvar och svara med samma nyckel
+preview_urls = false
+
+[triggers]
+crons = ["* * * * *"]          # varje minut; workern avgör själv om någon ska påminnas just nu
+
+[[kv_namespaces]]
+binding = "KV"
+id = "dc17583cb663475da3c0277d3ed1bc51"
+
+[vars]
+TILLATEN_ORIGIN = "https://tom-airaksinen.github.io"
+VAPID_PUBLIC = "BCIT3SHhWYrCyyyKmGxjCyqwNieh5C0iVsic5Rs-Jcnvl9jbp-LA4uq9dwzKsavnaPP77qnwPyuYGZVa7Sd1zsA"
+VAPID_SUB = "https://tom-airaksinen.github.io/orka/"
+
+# Den privata nyckeln läggs ALDRIG här. Den sätts som secret:
+#   npx wrangler secret put VAPID_JWK < .vapid.jwk
+# Byts nyckelparet måste VAPID_PUBLIC här och PUSH_NYCKEL i app.js bytas samtidigt,
+# och påminnelserna slås av och på igen i telefonen.

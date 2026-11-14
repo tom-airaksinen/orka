@@ -4,7 +4,11 @@
    Filen har två halvor: ren logik överst (testas i test/kor.mjs utan webbläsare)
    och rendering nederst (körs bara när det finns ett document). */
 
-const APP_VERSION = 2;
+const APP_VERSION = 3;
+// Påminnelserna skickas av en Cloudflare Worker (se push/). Nyckeln är den publika halvan av
+// VAPID-paret och ska vara samma som VAPID_PUBLIC i push/wrangler.toml.
+const PUSH_URL = 'https://orka-push.tomairaksinen.workers.dev';
+const PUSH_NYCKEL = 'BCIT3SHhWYrCyyyKmGxjCyqwNieh5C0iVsic5Rs-Jcnvl9jbp-LA4uq9dwzKsavnaPP77qnwPyuYGZVa7Sd1zsA';
 const KEY = 'orka-v1';
 const MAL_PASS = 3;        // styrkepass per vecka, enligt sjukgymnastens kort
 const FORESLA = 4;         // övningar som föreslås per pass
@@ -28,7 +32,8 @@ function nyttLage() {
     v: 1,
     exercises: SEED.map(([id, name, dose]) => ({ id, name, dose, active: true })),
     days: {},
-    types: ANNAT_TYPER.slice()
+    types: ANNAT_TYPER.slice(),
+    push: { on: false, morgon: '07:30', kvall: '21:30' }
   };
 }
 
@@ -161,7 +166,7 @@ if (typeof document !== 'undefined') (function () {
   function ladda() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY));
-      if (s && s.exercises && s.days) return s;
+      if (s && s.exercises && s.days) { s.push = s.push || nyttLage().push; return s; }
     } catch (e) { /* trasig eller tom lagring: börja om från fröet */ }
     return nyttLage();
   }
@@ -386,6 +391,16 @@ if (typeof document !== 'undefined') (function () {
         <label for="rd">Set och reps (valfritt)</label><input id="rd" type="text" placeholder="t.ex. 3 × 10">
         <div class="inrad"><button class="primar" data-act="sparaovn" data-id="ny">Lägg till</button><button class="lank" data-act="avbryt">Avbryt</button></div></div>`
         : `<button class="sek" data-act="redigera" data-id="ny">Lägg till övning</button>`}
+      <section><h2>Påminnelser</h2>
+        <p class="lage">En notis morgon och kväll som frågar hur höften känns.</p>
+        <label class="kryss"><input type="checkbox" role="switch" class="vaxel" id="pushpa" ${st.push.on ? 'checked' : ''}> Påminn mig morgon och kväll</label>
+        <div class="tider">
+          <label>Morgon<input type="time" id="tid-morgon" value="${st.push.morgon}"></label>
+          <label>Kväll<input type="time" id="tid-kvall" value="${st.push.kvall}"></label>
+        </div>
+        ${st.push.on ? `<button class="lank" data-act="pushtest">Skicka en testnotis</button>` : ''}
+        ${ui.pushMsg ? `<p class="fot" role="status">${esc(ui.pushMsg)}</p>` : ''}
+      </section>
       <section><h2>Säkerhetskopia</h2>
         <p class="lage">Allt sparas bara i den här telefonen. Spara en kopia då och då, så finns dagboken kvar om telefonen byts eller webbläsardata rensas.</p>
         <div class="laggtill"><button class="sek" data-act="export">Spara kopia</button>
@@ -405,7 +420,51 @@ if (typeof document !== 'undefined') (function () {
   }
   const minVarde = () => { const v = parseInt(($('#min') || {}).value, 10); return v > 0 && v <= 600 ? v : null; };
 
+  /* ---------- påminnelser ---------- */
+  const nyckelBytes = () => Uint8Array.from(atob(PUSH_NYCKEL.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+  async function pushPost(vag, kropp) {
+    const r = await fetch(PUSH_URL + vag, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(kropp) })
+      .catch(() => { throw new Error('Det gick inte att nå påminnelsetjänsten. Kontrollera att telefonen har nät och försök igen.'); });
+    if (!r.ok) throw new Error('Påminnelsetjänsten svarade inte som väntat. Försök igen om en stund.');
+    return r.json();
+  }
+  async function pushReg() {
+    // ready löser aldrig ut om service workern saknas, så vänta inte för evigt
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(r, 6000))]);
+    if (!reg) throw new Error('Appen är inte färdigladdad. Stäng den, öppna den igen och försök en gång till.');
+    return reg;
+  }
+  async function pushSynka() {
+    const reg = await pushReg();
+    const sub = await reg.pushManager.getSubscription()
+      || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: nyckelBytes() });
+    await pushPost('/prenumerera', { sub: sub.toJSON(), morgon: st.push.morgon, kvall: st.push.kvall,
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    return sub;
+  }
+  async function pushPa() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window))
+      throw new Error('Notiser fungerar bara när Orka ligger på hemskärmen. Öppna sidan i Safari, tryck på dela-knappen, välj "Lägg till på hemskärmen" och öppna appen därifrån.');
+    // Måste anropas direkt i tryckningen, annars visar iOS aldrig frågan
+    if (await Notification.requestPermission() !== 'granted')
+      throw new Error('Notiser är avstängda för Orka. Slå på dem i telefonens Inställningar under Notiser och Orka, och försök igen.');
+    await pushSynka();
+  }
+  async function pushAv() {
+    const reg = await pushReg(), sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await pushPost('/avsluta', { endpoint: sub.endpoint }).catch(() => {});   // telefonen slutar ta emot även om servern inte nås
+    await sub.unsubscribe();
+  }
+  const pushKlar = msg => { ui.pushMsg = msg; spara(); rita(); };
+
   const AKT = {
+    pushtest() {
+      pushSynka().then(sub => pushPost('/test', { endpoint: sub.endpoint }))
+        .then(r => pushKlar(r.ok ? 'Testnotisen är skickad och bör dyka upp inom några sekunder.' : `Telefonens pushtjänst tog inte emot notisen (svar ${r.status}). Slå av och på påminnelserna och försök igen.`))
+        .catch(e => pushKlar(e.message));
+      return false;
+    },
     dag(b) { ui.date = b.dataset.d; ui.form = null; },
     oppna(b) { ui.date = b.dataset.d; ui.vy = 'idag'; ui.form = null; scrollTo(0, 0); },
     vecka(b) {
@@ -483,19 +542,32 @@ if (typeof document !== 'undefined') (function () {
 
   document.addEventListener('click', ev => {
     const nav = ev.target.closest('nav button');
-    if (nav) { ui.vy = nav.dataset.vy; ui.form = null; ui.redigera = null; if (ui.vy === 'idag') sakraForslag(); rita(); scrollTo(0, 0); return; }
+    if (nav) { ui.vy = nav.dataset.vy; ui.form = null; ui.redigera = null; ui.pushMsg = null; if (ui.vy === 'idag') sakraForslag(); rita(); scrollTo(0, 0); return; }
     const b = ev.target.closest('[data-act]');
     if (!b || b.disabled) return;
     if (AKT[b.dataset.act](b) === false) return;
     spara(); rita();
   });
   document.addEventListener('change', ev => {
+    const el = ev.target;
+    if (el.id === 'pushpa') {
+      const pa = el.checked;
+      (pa ? pushPa() : pushAv()).then(() => { st.push.on = pa; pushKlar(pa ? `Påminnelser på: ${st.push.morgon} och ${st.push.kvall}.` : 'Påminnelserna är avstängda.'); })
+        .catch(e => { st.push.on = pa ? false : st.push.on; pushKlar(e.message); });
+      return;
+    }
+    if (el.id === 'tid-morgon' || el.id === 'tid-kvall') {
+      if (!/^\d\d:\d\d$/.test(el.value)) return;
+      st.push[el.id === 'tid-morgon' ? 'morgon' : 'kvall'] = el.value; spara();
+      if (st.push.on) pushSynka().then(() => pushKlar(`Påminnelser på: ${st.push.morgon} och ${st.push.kvall}.`)).catch(e => pushKlar(e.message));
+      return;
+    }
     if (ev.target.id !== 'importfil' || !ev.target.files[0]) return;
     ev.target.files[0].text().then(t => {
       const ny = JSON.parse(t);
       if (!ny || !Array.isArray(ny.exercises) || typeof ny.days !== 'object') throw new Error('fel format');
       if (!confirm(`Kopian innehåller ${Object.keys(ny.days).length} dagar. Den ersätter allt som finns i appen nu. Läs in?`)) return;
-      st = ny; st.types = st.types || ANNAT_TYPER.slice(); spara(); rita();
+      ny.push = st.push; st = ny; st.types = st.types || ANNAT_TYPER.slice(); spara(); rita();   // påminnelserna hör till telefonen, inte till kopian
     }).catch(() => alert('Filen gick inte att läsa. Välj en kopia som sparats från Orka.'));
   });
   // Appen ligger ofta öppen över natten: byt till rätt dag när den tas fram igen

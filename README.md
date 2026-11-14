@@ -8,7 +8,7 @@ Live: https://tom-airaksinen.github.io/orka/
 
 - **Idag:** veckan som ett rutnät, smärta 0–10 morgon och kväll, fyra föreslagna styrkeövningar att bocka av, samt löpning (minuter), annan träning och stillasittande dag. Tryck på en dag i rutnätet för att fylla i den i efterhand.
 - **Mönster:** smärta över fyra veckor med träningen markerad under, snittsmärta morgonen efter och två morgnar efter varje slags aktivitet, löpminuter per vecka och en dagbok.
-- **Övningar:** ändra, lägg till och pausa övningar. Säkerhetskopia till fil.
+- **Övningar:** ändra, lägg till och pausa övningar. Påminnelser morgon och kväll med valfria tider. Säkerhetskopia till fil.
 
 Rotationen är en viktad slump: ju längre sedan en övning gjordes, desto oftare föreslås den (`foresla()` i `app.js`).
 
@@ -20,6 +20,19 @@ Ren HTML, CSS och JavaScript utan byggsteg. All data ligger i `localStorage` (ny
 - `app.js` – logik överst, rendering nederst
 - `sw.js` – offline-cache, nätverket först för appens filer
 - `test/kor.mjs` – `node test/kor.mjs`
+
+## Påminnelser
+
+En webbapp kan inte väcka sig själv på en iPhone, så notiserna skickas av en Cloudflare Worker i `push/` (`orka-push`). Den körs varje minut, jämför klockan med prenumerationernas två tider och skickar en krypterad pushnotis. Den lagrar bara telefonens pushadress och klockslagen, ingenting ur dagboken.
+
+Driftsättning, från `push/`:
+
+```
+npx wrangler deploy
+npx wrangler secret put VAPID_JWK < .vapid.jwk
+```
+
+`.vapid.jwk` är den privata nyckeln och ligger utanför git. Den publika halvan står i `push/wrangler.toml` (`VAPID_PUBLIC`) och i `app.js` (`PUSH_NYCKEL`) och måste vara samma på båda ställena.
 
 ## Deploy
 

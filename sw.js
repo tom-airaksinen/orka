@@ -1,6 +1,6 @@
 /* Offline-cache. Appens egna filer hämtas nätverket först (så att en ny version
    syns direkt) och faller tillbaka på cachen utan nät. Typsnitten läses cache-först. */
-const CACHE = 'orka-v2';
+const CACHE = 'orka-v3';
 const FONTER = 'orka-fonter';
 const SKAL = ['./', './index.html', './app.js', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 
@@ -20,6 +20,27 @@ self.addEventListener('activate', e => {
   e.waitUntil((async () => {
     for (const k of await caches.keys()) if (k !== CACHE && k !== FONTER) await caches.delete(k);
     await self.clients.claim();
+  })());
+});
+
+/* Påminnelserna. iOS kräver att varje push visar en notis, så det görs alltid,
+   även om innehållet skulle saknas. */
+self.addEventListener('push', e => {
+  let slot = '';
+  try { slot = e.data.json().slot; } catch (err) { /* tomt eller oläsbart: visa den allmänna frågan */ }
+  const text = slot === 'morgon' ? 'Hur känns höften i morse?'
+    : slot === 'kvall' ? 'Hur känns höften i kväll?'
+    : slot === 'test' ? 'Så här ser påminnelsen ut.'
+    : 'Hur känns höften?';
+  e.waitUntil(self.registration.showNotification('Orka', { body: text, tag: 'orka-' + (slot || 'fraga'), icon: 'icon-192.png' }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const oppna = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (oppna.length) return oppna[0].focus();
+    return self.clients.openWindow('./');
   })());
 });
 
