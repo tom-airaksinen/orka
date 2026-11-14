@@ -1,0 +1,17 @@
+{
+  "name": "Orka",
+  "short_name": "Orka",
+  "description": "Rehabdagbok: roterande styrkeövningar, annan träning och hur det känns efteråt",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#DCE9DA",
+  "theme_color": "#DCE9DA",
+  "lang": "sv",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

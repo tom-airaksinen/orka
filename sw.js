@@ -1,0 +1,51 @@
+/* Offline-cache. Appens egna filer hämtas nätverket först (så att en ny version
+   syns direkt) och faller tillbaka på cachen utan nät. Typsnitten läses cache-först. */
+const CACHE = 'orka-v1';
+const FONTER = 'orka-fonter';
+const SKAL = ['./', './index.html', './app.js', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
+
+self.addEventListener('install', e => {
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    // cache:'reload' går förbi webbläsarens HTTP-cache, annars kan en gammal fil hamna i den nya cachen
+    await Promise.allSettled(SKAL.map(async u => {
+      const r = await fetch(new Request(u, { cache: 'reload' }));
+      if (r.ok) await c.put(u, r);
+    }));
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil((async () => {
+    for (const k of await caches.keys()) if (k !== CACHE && k !== FONTER) await caches.delete(k);
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    e.respondWith((async () => {
+      const c = await caches.open(FONTER);
+      const hit = await c.match(e.request);
+      if (hit) return hit;
+      const r = await fetch(e.request);
+      if (r.ok || r.type === 'opaque') c.put(e.request, r.clone());
+      return r;
+    })());
+    return;
+  }
+  if (url.origin !== location.origin) return;
+  e.respondWith((async () => {
+    const c = await caches.open(CACHE);
+    try {
+      const r = await fetch(e.request, { cache: 'no-cache' });
+      if (r.ok) c.put(e.request, r.clone());
+      return r;
+    } catch (err) {
+      return (await c.match(e.request, { ignoreSearch: true })) || (await c.match('./index.html'));
+    }
+  })());
+});

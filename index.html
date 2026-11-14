@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#DCE9DA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121A16" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Orka">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Orka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Utseendet lånar från sjukgymnastens träningskort: mintgrönt papper, streckade
+   linjer och kulspetsblått för det som är ifyllt. */
+:root{
+  --papper:#DCE9DA; --ark:#EDF4EA; --black:#182038; --penna:#2A3EA6; --linje:#8FA996; --svag:#4E5E55;
+  --fara:#A6321F;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --papper:#121A16; --ark:#1B2721; --black:#E4EEE3; --penna:#9DADFF; --linje:#465A4E; --svag:#9DB0A4; --fara:#FF9C8A; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--papper); color:var(--black);
+  font:400 17px/1.4 "Familjen Grotesk",system-ui,sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+main{max-width:520px; margin:0 auto; padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 92px)}
+button,input,textarea{font:inherit; color:inherit}
+button{cursor:pointer; touch-action:manipulation}
+:focus-visible{outline:2px solid var(--penna); outline-offset:2px}
+
+.topp{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px}
+h1{font-size:40px; line-height:1; font-weight:700; letter-spacing:-.02em; margin:0}
+.datum{margin:0; color:var(--svag); text-align:right}
+h2{font-size:21px; font-weight:600; letter-spacing:-.01em; margin:0 0 8px}
+section{margin-top:30px}
+.lage{margin:0 0 10px; color:var(--svag)}
+.fot{margin:8px 0 0; font-size:14px; color:var(--svag)}
+.tomt{color:var(--svag); margin:8px 0}
+.svag{color:var(--svag)}
+.etikett,label{font-size:15px; color:var(--svag)}
+
+.lank{background:none; border:0; padding:10px 4px; color:var(--penna); font-weight:500; text-decoration:underline; text-underline-offset:3px}
+.lank.fara{color:var(--fara); margin-left:auto}
+.primar{background:var(--penna); color:var(--papper); border:0; border-radius:10px; padding:0 18px; min-height:46px; font-weight:600}
+.sek{background:var(--ark); border:1.5px solid var(--linje); border-radius:10px; padding:0 14px; min-height:46px; font-weight:500;
+  display:inline-flex; align-items:center; justify-content:center}
+.sek.pa{border-color:var(--penna); color:var(--penna); border-width:2px}
+.knapprad{display:flex; gap:18px; margin-top:2px}
+
+/* Veckan som träningskortets rutnät */
+.veckohuvud{display:flex; align-items:center; justify-content:space-between; font-weight:600; margin-bottom:4px}
+.pil{background:none; border:0; width:44px; height:40px; font-size:26px; line-height:1; color:var(--penna)}
+.pil:disabled{color:var(--linje)}
+.kort{width:100%; border-collapse:collapse; table-layout:fixed; background:var(--ark); border:1.5px solid var(--black); font-variant-numeric:tabular-nums}
+.kort th:first-child{width:68px; text-align:left; padding-left:8px; font-weight:500; font-size:14px}
+.kort td,.kort th{height:34px; text-align:center; padding:0; border-left:1px solid var(--linje); border-top:1px dashed var(--linje)}
+.kort thead th{height:46px; border-top:0; border-bottom:1.5px solid var(--black); font-weight:500}
+.kort tr > :first-child{border-left:0}
+.kort td{color:var(--penna); font-weight:700; font-size:16px}
+.kort .vd{display:block; font-size:12px; color:var(--svag); line-height:1.1}
+.kort .dn{display:block; font-size:16px; line-height:1.2}
+.kort .nu .dn{font-weight:700; text-decoration:underline; text-underline-offset:3px}
+.kort .vald{background:color-mix(in srgb, var(--penna) 13%, transparent)}
+.sm{display:inline-grid; place-items:center; min-width:26px; height:24px; border-radius:6px; font-size:15px; font-weight:700; font-variant-numeric:tabular-nums}
+.sm.tom{border:1px dashed var(--linje); color:var(--svag); font-weight:400}
+
+/* Smärtskalan */
+.smartrad{margin-top:10px}
+.skala{display:grid; grid-template-columns:repeat(11,1fr); gap:3px; margin-top:4px}
+.skala button{height:46px; padding:0; background:var(--ark); border:1.5px solid var(--linje); border-radius:8px; font-weight:500; font-variant-numeric:tabular-nums}
+.skala .pa{border-color:var(--black); font-weight:700; transform:scale(1.08)}
+
+/* Övningar i dagens pass */
+.ovningar,.poster,.ovnlista,.dagbok{list-style:none; margin:0; padding:0}
+.ovningar li{display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px dashed var(--linje)}
+.ovningar li:last-child{border-bottom:1px dashed var(--linje)}
+.bock{flex:none; width:36px; height:36px; border-radius:8px; border:2px solid var(--black); background:var(--ark); position:relative}
+.bock[aria-pressed="true"]{background:var(--penna); border-color:var(--penna)}
+.bock[aria-pressed="true"]::after{content:""; position:absolute; left:11px; top:5px; width:9px; height:17px; border:solid var(--papper); border-width:0 3px 3px 0; transform:rotate(42deg)}
+.ovn{flex:1; min-width:0}
+.namn{display:block; font-weight:500; line-height:1.25}
+.dos{display:block; font-size:14.5px; color:var(--svag); margin-top:2px}
+.gjord .namn{text-decoration:line-through; text-decoration-color:var(--penna); text-decoration-thickness:1.5px}
+
+/* Annat */
+.poster li{display:flex; justify-content:space-between; align-items:center; border-top:1px dashed var(--linje); padding:2px 0}
+.poster{margin-bottom:12px; border-bottom:1px dashed var(--linje)}
+.laggtill{display:flex; flex-wrap:wrap; gap:8px}
+.form{display:grid; gap:8px; margin-top:12px; padding:14px; background:var(--ark); border:1.5px solid var(--linje); border-radius:12px}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{background:var(--papper); border:1.5px solid var(--linje); border-radius:999px; min-height:40px; padding:0 14px}
+.chip.pa{background:var(--penna); border-color:var(--penna); color:var(--papper)}
+input[type=number],input[type=text],textarea{width:100%; min-height:46px; padding:10px 12px; background:var(--papper); border:1.5px solid var(--linje); border-radius:10px; font-size:17px}
+textarea{resize:vertical}
+.inrad{display:flex; gap:10px; align-items:center}
+.inrad input{flex:1; min-width:0}
+.kryss{display:flex; align-items:center; gap:10px; min-height:40px; color:var(--black); font-size:17px}
+.kryss input{width:22px; height:22px; accent-color:var(--penna)}
+
+/* Mönster */
+.diagram{display:block; width:100%; height:auto; background:var(--ark); border:1.5px solid var(--black)}
+.diagram .r{stroke:var(--linje); stroke-width:1; stroke-dasharray:3 3}
+.diagram .ax{fill:var(--svag); font-size:10px}
+.diagram .l{fill:none; stroke:var(--penna); stroke-width:1.2; opacity:.55}
+.diagram .pm{fill:var(--penna)}
+.diagram .pe{fill:var(--ark); stroke:var(--penna); stroke-width:1.6}
+.diagram .m{fill:var(--black)}
+.forkl{display:flex; flex-wrap:wrap; gap:4px 14px}
+.p{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; border:2px solid var(--penna)}
+.p.pm{background:var(--penna)}
+.efter{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums}
+.efter th,.efter td{padding:9px 6px; border-top:1px dashed var(--linje); text-align:right; vertical-align:top}
+.efter thead th{border-top:0; font-size:14px; font-weight:500; color:var(--svag)}
+.efter th[scope=row]{text-align:left; font-weight:500; padding-left:0}
+.efter td{font-weight:600; white-space:nowrap}
+.efter td .svag{font-weight:400}
+.staplar{display:grid; grid-template-columns:repeat(8,1fr); gap:6px; align-items:end; height:120px; padding-top:6px; border-bottom:1.5px solid var(--black)}
+.stapel{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; position:relative}
+.stolpe{width:100%; background:var(--penna); border-radius:3px 3px 0 0; min-height:0}
+.varde{font-size:14px; font-weight:600; font-variant-numeric:tabular-nums}
+.vnr{position:absolute; bottom:-22px; font-size:13px; color:var(--svag)}
+.staplar + .fot{margin-top:28px}
+.dagbok li{border-top:1px dashed var(--linje); padding:4px 0 10px}
+.dbhuvud{display:flex; justify-content:space-between; align-items:center}
+.dbsm{display:flex; gap:4px}
+.dagbok p{margin:0; font-size:15px; color:var(--svag)}
+
+/* Övningslistan */
+.ovnlista li{border-top:1px dashed var(--linje)}
+.ovnlista{border-bottom:1px dashed var(--linje); margin-bottom:14px}
+.ovnrad{display:block; width:100%; text-align:left; background:none; border:0; padding:11px 0}
+.pausad .namn{color:var(--svag)}
+.redigerar .form{margin:10px 0}
+.filknapp{cursor:pointer; color:var(--black); font-size:17px}
+.version{margin-top:28px}
+
+nav{position:fixed; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(3,1fr);
+  background:var(--ark); border-top:1.5px solid var(--black); padding-bottom:env(safe-area-inset-bottom)}
+nav button{background:none; border:0; height:56px; font-weight:500; color:var(--svag); border-left:1px dashed var(--linje)}
+nav button:first-child{border-left:0}
+nav button[aria-current=page]{color:var(--penna); font-weight:700; box-shadow:inset 0 3px 0 var(--penna)}
+
+@media (prefers-reduced-motion:no-preference){ .skala button{transition:transform .12s} }
+</style>
+</head>
+<body>
+<main id="vy"></main>
+<nav aria-label="Vyer">
+  <button data-vy="idag">Idag</button>
+  <button data-vy="monster">Mönster</button>
+  <button data-vy="ovningar">Övningar</button>
+</nav>
+<script src="app.js" charset="utf-8"></script>
+</body>
+</html>
