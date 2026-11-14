@@ -34,6 +34,7 @@ body{
   font:400 17px/1.4 "Familjen Grotesk",system-ui,sans-serif;
   -webkit-tap-highlight-color:transparent;
 }
+body::before{content:""; position:fixed; z-index:5; top:0; left:0; right:0; height:env(safe-area-inset-top); background:var(--papper)}
 main{max-width:520px; margin:0 auto; padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 92px)}
 button,input,textarea{font:inherit; color:inherit}
 button{cursor:pointer; touch-action:manipulation}
@@ -62,6 +63,10 @@ section{margin-top:30px}
 .veckohuvud{display:flex; align-items:center; justify-content:space-between; font-weight:600; margin-bottom:4px}
 .pil{background:none; border:0; width:44px; height:40px; font-size:26px; line-height:1; color:var(--penna)}
 .pil:disabled{color:var(--linje)}
+.veckohuvud{min-height:40px}
+.tillidag{padding:0 0 0 10px; font-weight:500}
+.kort .sen{color:var(--linje)}
+.kort .sen .vd,.kort .sen .dn{color:var(--linje)}
 .kort{width:100%; border-collapse:collapse; table-layout:fixed; background:var(--ark); border:1.5px solid var(--black); font-variant-numeric:tabular-nums}
 .kort th:first-child{width:68px; text-align:left; padding-left:8px; font-weight:500; font-size:14px}
 .kort td,.kort th{height:34px; text-align:center; padding:0; border-left:1px solid var(--linje); border-top:1px dashed var(--linje)}

@@ -4,7 +4,7 @@
    Filen har två halvor: ren logik överst (testas i test/kor.mjs utan webbläsare)
    och rendering nederst (körs bara när det finns ett document). */
 
-const APP_VERSION = 1;
+const APP_VERSION = 2;
 const KEY = 'orka-v1';
 const MAL_PASS = 3;        // styrkepass per vecka, enligt sjukgymnastens kort
 const FORESLA = 4;         // övningar som föreslås per pass
@@ -193,17 +193,17 @@ if (typeof document !== 'undefined') (function () {
     const m = monday(ui.date), t = idag();
     const dgr = [...Array(7)].map((_, i) => addDays(m, i));
     const cell = (d, inne, extra = '') =>
-      `<td class="${d === ui.date ? 'vald' : ''} ${extra}" data-act="dag" data-d="${d}">${inne}</td>`;
+      `<td class="${d === ui.date ? 'vald' : ''} ${d > t ? 'sen' : ''} ${extra}" ${d > t ? '' : `data-act="dag" data-d="${d}"`}>${inne}</td>`;
     const rad = (namn, fn) => `<tr><th scope="row">${namn}</th>${dgr.map(d => cell(d, fn(dag(st, d)))).join('')}</tr>`;
     const smarta = v => v == null ? '' : `<span class="sm" style="${smartStil(v)}">${v}</span>`;
     return `
     <div class="veckohuvud">
       <button class="pil" data-act="vecka" data-n="-1" aria-label="Föregående vecka">‹</button>
-      <span>Vecka ${weekNo(m)}</span>
+      <span>Vecka ${weekNo(m)}${ui.date === t ? '' : ` <button class="lank tillidag" data-act="dag" data-d="${t}">Till i dag</button>`}</span>
       <button class="pil" data-act="vecka" data-n="1" aria-label="Nästa vecka" ${m >= monday(t) ? 'disabled' : ''}>›</button>
     </div>
     <table class="kort">
-      <thead><tr><th></th>${dgr.map(d => `<th scope="col" class="${d === ui.date ? 'vald' : ''} ${d === t ? 'nu' : ''}" data-act="dag" data-d="${d}">
+      <thead><tr><th></th>${dgr.map(d => `<th scope="col" class="${d === ui.date ? 'vald' : ''} ${d === t ? 'nu' : ''} ${d > t ? 'sen' : ''}" ${d > t ? '' : `data-act="dag" data-d="${d}"`}>
         <span class="vd">${DAGAR[vd(d)][0].toUpperCase()}</span><span class="dn">${parse(d).getDate()}</span></th>`).join('')}</tr></thead>
       <tbody>
         ${rad('Styrka', d => d.done.length || '')}
@@ -237,7 +237,7 @@ if (typeof document !== 'undefined') (function () {
       return `<li class="${gjord ? 'gjord' : ''}">
         <button class="bock" data-act="bocka" data-id="${id}" aria-pressed="${gjord}" aria-label="${gjord ? 'Ångra' : 'Klar med'} ${esc(e.name)}"></button>
         <div class="ovn"><span class="namn">${esc(e.name)}</span>
-          <span class="dos">${[e.dose && esc(e.dose), s ? 'senast ' + relativ(s, ui.date) : 'inte gjord än'].filter(Boolean).join(', ')}</span></div>
+          <span class="dos">${[e.dose && esc(e.dose), gjord ? '' : s ? 'senast ' + relativ(s, ui.date) : 'inte gjord tidigare'].filter(Boolean).join(', ')}</span></div>
         ${arIdag && !gjord ? `<button class="lank" data-act="byt" data-id="${id}">Byt</button>` : ''}
       </li>`;
     }).join('');
@@ -286,7 +286,7 @@ if (typeof document !== 'undefined') (function () {
     const t = idag(), arIdag = ui.date === t;
     return `
     <header class="topp"><h1>Orka</h1>
-      <p class="datum">${datumText(ui.date)}${arIdag ? '' : ` <button class="lank" data-act="dag" data-d="${t}">Till i dag</button>`}</p></header>
+      <p class="datum">${datumText(ui.date)}</p></header>
     ${veckoRutnat()}
     <section>
       <h2>Hur ont gör höften?</h2>
@@ -376,7 +376,7 @@ if (typeof document !== 'undefined') (function () {
       const s = senastGjord(st, e.id, addDays(t, 1));
       return `<li class="${e.active ? '' : 'pausad'}"><button class="ovnrad" data-act="redigera" data-id="${e.id}">
         <span class="namn">${esc(e.name)}</span>
-        <span class="dos">${[e.dose && esc(e.dose), e.active ? '' : 'pausad', s ? 'senast ' + relativ(s, t) : 'inte gjord än'].filter(Boolean).join(', ')}</span></button></li>`;
+        <span class="dos">${[e.dose && esc(e.dose), e.active ? '' : 'pausad', s ? 'senast ' + relativ(s, t) : 'inte gjord tidigare'].filter(Boolean).join(', ')}</span></button></li>`;
     };
     return `<header class="topp"><h1>Övningar</h1></header>
       <p class="lage">Appen föreslår ${FORESLA} av de här varje pass, oftast dem du inte gjort på ett tag. Tryck på en övning för att ändra den.</p>

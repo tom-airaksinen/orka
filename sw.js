@@ -1,6 +1,6 @@
 /* Offline-cache. Appens egna filer hämtas nätverket först (så att en ny version
    syns direkt) och faller tillbaka på cachen utan nät. Typsnitten läses cache-först. */
-const CACHE = 'orka-v1';
+const CACHE = 'orka-v2';
 const FONTER = 'orka-fonter';
 const SKAL = ['./', './index.html', './app.js', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 
