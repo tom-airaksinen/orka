@@ -8,7 +8,7 @@
 
 ## Funktioner
 - [x] Påminnelse morgon och kväll om att fylla i smärtan? → **Svar:** Ja, byggt som pushnotiser via en Cloudflare Worker (`push/`), tider ställs in under Övningar, standard 07:30 och 21:30 (2026-11-14)
-- [ ] Ska påminnelsen utebli om smärtan redan är ifylld för morgonen eller kvällen? I dag skickas den alltid.
+- [x] Ska påminnelsen utebli om smärtan redan är ifylld för morgonen eller kvällen? → **Svar:** Ja, appen meddelar servern datumet när morgon eller kväll fylls i (2026-11-14)
 - [ ] Räcker 0–10 för smärtan, eller behövs en fritextanteckning per dag?
 - [ ] Ska en lista kunna skrivas ut eller delas med sjukgymnasten inför återbesök?
 

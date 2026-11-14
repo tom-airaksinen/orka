@@ -23,7 +23,7 @@ Ren HTML, CSS och JavaScript utan byggsteg. All data ligger i `localStorage` (ny
 
 ## Påminnelser
 
-En webbapp kan inte väcka sig själv på en iPhone, så notiserna skickas av en Cloudflare Worker i `push/` (`orka-push`). Den körs varje minut, jämför klockan med prenumerationernas två tider och skickar en krypterad pushnotis. Den lagrar bara telefonens pushadress och klockslagen, ingenting ur dagboken.
+En webbapp kan inte väcka sig själv på en iPhone, så notiserna skickas av en Cloudflare Worker i `push/` (`orka-push`). Den körs varje minut, jämför klockan med prenumerationernas två tider och skickar en krypterad pushnotis. Är morgonens eller kvällens smärta redan ifylld uteblir notisen. Den lagrar telefonens pushadress, klockslagen och vilket datum morgon respektive kväll senast fylldes i, men inga värden ur dagboken.
 
 Driftsättning, från `push/`:
 

@@ -3,7 +3,8 @@
    En webbapp kan inte väcka sig själv på en iPhone, så den här workern körs varje
    minut, tittar vilka prenumerationer som har sin tid just nu och skickar en
    pushnotis till dem. Den vet ingenting om dagboken, bara adressen till telefonens
-   pushtjänst och de två klockslagen.
+   pushtjänst, de två klockslagen och vilket datum morgon respektive kväll senast fylldes i
+   (så att påminnelsen kan utebli när frågan redan är besvarad).
 
    Lagring: en enda KV-nyckel "subs" med en lista. Appen har en användare, så en
    lista räcker och håller varje körning på en läsning. */
@@ -76,6 +77,7 @@ function lokalTid(ms, tz) {
   const d = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms));
   return `${d.find(p => p.type === 'hour').value}:${d.find(p => p.type === 'minute').value}`;
 }
+const lokalDatum = (ms, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
 const giltigTz = tz => { try { new Intl.DateTimeFormat('en-GB', { timeZone: tz }); return true; } catch (e) { return false; } };
 
 /* ---------- http ---------- */
@@ -105,7 +107,9 @@ export default {
     if (vag === '/prenumerera') {
       if (!giltigSub(b.sub || {}) || !TID.test(b.morgon) || !TID.test(b.kvall) || !giltigTz(b.tz)) return svar({ fel: 'ogiltiga uppgifter' }, 400);
       const ny = { endpoint: b.sub.endpoint, keys: { p256dh: b.sub.keys.p256dh, auth: b.sub.keys.auth }, morgon: b.morgon, kvall: b.kvall, tz: b.tz };
-      const subs = (await lasSubs(env)).filter(s => s.endpoint !== ny.endpoint);
+      const alla = await lasSubs(env), gammal = alla.find(s => s.endpoint === ny.endpoint);
+      if (gammal && gammal.klar) ny.klar = gammal.klar;      // ändrad tid ska inte glömma att dagens fråga redan är besvarad
+      const subs = alla.filter(s => s.endpoint !== ny.endpoint);
       subs.push(ny);
       await skrivSubs(env, subs.slice(-MAX_SUBS));
       return svar({ ok: true });
@@ -113,6 +117,16 @@ export default {
     if (vag === '/avsluta') {
       const subs = await lasSubs(env);
       await skrivSubs(env, subs.filter(s => s.endpoint !== b.endpoint));
+      return svar({ ok: true });
+    }
+    if (vag === '/ifyllt') {
+      // Appen berättar att morgonens eller kvällens smärta är ifylld (eller borttagen igen, datum null).
+      // Bara datumet lagras, aldrig själva värdet.
+      if (!['morgon', 'kvall'].includes(b.slot) || !(b.datum === null || /^\d{4}-\d\d-\d\d$/.test(b.datum))) return svar({ fel: 'ogiltiga uppgifter' }, 400);
+      const subs = await lasSubs(env), sub = subs.find(s => s.endpoint === b.endpoint);
+      if (!sub) return svar({ fel: 'okänd prenumeration' }, 404);
+      sub.klar = { ...sub.klar, [b.slot]: b.datum };
+      await skrivSubs(env, subs);
       return svar({ ok: true });
     }
     if (vag === '/test') {
@@ -135,6 +149,7 @@ export default {
       const nu = lokalTid(ev.scheduledTime, s.tz);
       const slot = nu === s.morgon ? 'morgon' : nu === s.kvall ? 'kvall' : null;
       if (!slot) return;
+      if (s.klar && s.klar[slot] === lokalDatum(ev.scheduledTime, s.tz)) return;   // redan ifyllt i dag: ingen påminnelse
       const status = await skicka(env, s, { slot }).catch(() => 0);
       if (status === 404 || status === 410) dod.add(s.endpoint);     // telefonen har sagt upp prenumerationen
     }));

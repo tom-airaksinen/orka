@@ -4,7 +4,7 @@
    Filen har två halvor: ren logik överst (testas i test/kor.mjs utan webbläsare)
    och rendering nederst (körs bara när det finns ett document). */
 
-const APP_VERSION = 3;
+const APP_VERSION = 4;
 // Påminnelserna skickas av en Cloudflare Worker (se push/). Nyckeln är den publika halvan av
 // VAPID-paret och ska vara samma som VAPID_PUBLIC i push/wrangler.toml.
 const PUSH_URL = 'https://orka-push.tomairaksinen.workers.dev';
@@ -392,7 +392,7 @@ if (typeof document !== 'undefined') (function () {
         <div class="inrad"><button class="primar" data-act="sparaovn" data-id="ny">Lägg till</button><button class="lank" data-act="avbryt">Avbryt</button></div></div>`
         : `<button class="sek" data-act="redigera" data-id="ny">Lägg till övning</button>`}
       <section><h2>Påminnelser</h2>
-        <p class="lage">En notis morgon och kväll som frågar hur höften känns.</p>
+        <p class="lage">En notis morgon och kväll som frågar hur höften känns. Har du redan fyllt i kommer ingen notis.</p>
         <label class="kryss"><input type="checkbox" role="switch" class="vaxel" id="pushpa" ${st.push.on ? 'checked' : ''}> Påminn mig morgon och kväll</label>
         <div class="tider">
           <label>Morgon<input type="time" id="tid-morgon" value="${st.push.morgon}"></label>
@@ -472,7 +472,17 @@ if (typeof document !== 'undefined') (function () {
       ui.date = d > t ? t : d; ui.form = null;
     },
     period(b) { ui.monsterSlut = b.dataset.d >= idag() ? null : b.dataset.d; },
-    smarta(b) { const n = +b.dataset.n, f = b.dataset.f; skrivDag(st, ui.date, d => { d[f] = d[f] === n ? null : n; }); },
+    smarta(b) {
+      const n = +b.dataset.n, f = b.dataset.f;
+      skrivDag(st, ui.date, d => { d[f] = d[f] === n ? null : n; });
+      // Säg till påminnelsetjänsten, så att dagens notis uteblir när frågan redan är besvarad.
+      // Misslyckas det (inget nät) kommer notisen ändå, vilket är det ofarliga felet.
+      if (st.push.on && ui.date === idag()) {
+        const datum = dag(st, ui.date)[f] == null ? null : ui.date;
+        pushReg().then(r => r.pushManager.getSubscription())
+          .then(s => s && pushPost('/ifyllt', { endpoint: s.endpoint, slot: f === 'pm' ? 'morgon' : 'kvall', datum })).catch(() => {});
+      }
+    },
     bocka(b) {
       const id = b.dataset.id;
       skrivDag(st, ui.date, d => { d.done = d.done.includes(id) ? d.done.filter(x => x !== id) : [...d.done, id]; });
