@@ -1,6 +1,6 @@
 /* Offline-cache. Appens egna filer hämtas nätverket först (så att en ny version
    syns direkt) och faller tillbaka på cachen utan nät. Typsnitten läses cache-först. */
-const CACHE = 'orka-v4';
+const CACHE = 'orka-v5';
 const FONTER = 'orka-fonter';
 const SKAL = ['./', './index.html', './app.js', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 
@@ -28,8 +28,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('push', e => {
   let slot = '';
   try { slot = e.data.json().slot; } catch (err) { /* tomt eller oläsbart: visa den allmänna frågan */ }
-  const text = slot === 'morgon' ? 'Hur känns höften i morse?'
-    : slot === 'kvall' ? 'Hur känns höften i kväll?'
+  const text = slot === 'morgon' ? 'Hur känns höften nu på morgonen?'
+    : slot === 'kvall' ? 'Hur känns höften nu på kvällen?'
     : slot === 'test' ? 'Så här ser påminnelsen ut.'
     : 'Hur känns höften?';
   e.waitUntil(self.registration.showNotification('Orka', { body: text, tag: 'orka-' + (slot || 'fraga'), icon: 'icon-192.png' }));
@@ -39,7 +39,8 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil((async () => {
     const oppna = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    if (oppna.length) return oppna[0].focus();
+    // En app som redan ligger öppen kan stå på en annan dag eller vy: be den gå till i dag
+    if (oppna.length) { oppna[0].postMessage({ typ: 'idag' }); return oppna[0].focus(); }
     return self.clients.openWindow('./');
   })());
 });

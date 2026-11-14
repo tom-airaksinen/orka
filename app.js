@@ -4,7 +4,7 @@
    Filen har två halvor: ren logik överst (testas i test/kor.mjs utan webbläsare)
    och rendering nederst (körs bara när det finns ett document). */
 
-const APP_VERSION = 4;
+const APP_VERSION = 5;
 // Påminnelserna skickas av en Cloudflare Worker (se push/). Nyckeln är den publika halvan av
 // VAPID-paret och ska vara samma som VAPID_PUBLIC i push/wrangler.toml.
 const PUSH_URL = 'https://orka-push.tomairaksinen.workers.dev';
@@ -585,6 +585,13 @@ if (typeof document !== 'undefined') (function () {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || idag() === settDag) return;
     settDag = idag(); ui.date = settDag; ui.form = null; sakraForslag(); rita();
+  });
+
+  // Tryck på en påminnelse: service workern ber appen visa dagens datum i Idag-vyn
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', ev => {
+    if (!ev.data || ev.data.typ !== 'idag') return;
+    settDag = idag(); ui.vy = 'idag'; ui.date = settDag; ui.form = null; ui.redigera = null;
+    sakraForslag(); rita(); scrollTo(0, 0);
   });
 
   sakraForslag();
