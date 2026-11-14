@@ -4,7 +4,7 @@
    Filen har två halvor: ren logik överst (testas i test/kor.mjs utan webbläsare)
    och rendering nederst (körs bara när det finns ett document). */
 
-const APP_VERSION = 5;
+const APP_VERSION = 6;
 // Påminnelserna skickas av en Cloudflare Worker (se push/). Nyckeln är den publika halvan av
 // VAPID-paret och ska vara samma som VAPID_PUBLIC i push/wrangler.toml.
 const PUSH_URL = 'https://orka-push.tomairaksinen.workers.dev';
@@ -160,6 +160,7 @@ if (typeof document !== 'undefined') (function () {
   const idag = () => iso(new Date());
   const tal = x => x.toFixed(1).replace('.', ',');
 
+  const SS_PLATS = 'orka-plats';      // vy och dag över en omladdning vid uppdatering
   let st = ladda();
   const ui = { vy: ({ '#monster': 'monster', '#ovningar': 'ovningar' })[location.hash] || 'idag', date: idag(), form: null, annatTyp: null, redigera: null, monsterSlut: null };
 
@@ -557,6 +558,7 @@ if (typeof document !== 'undefined') (function () {
     if (!b || b.disabled) return;
     if (AKT[b.dataset.act](b) === false) return;
     spara(); rita();
+    kanskeLaddaOm();      // ett formulär kan just ha stängts
   });
   document.addEventListener('change', ev => {
     const el = ev.target;
@@ -594,8 +596,47 @@ if (typeof document !== 'undefined') (function () {
     sakraForslag(); rita(); scrollTo(0, 0);
   });
 
+  // Kommer vi från en omladdning efter uppdatering: tillbaka till samma vy och dag.
+  // sessionStorage är tom vid en riktig kallstart, så en gammal plats kan inte spöka.
+  try {
+    const p = JSON.parse(sessionStorage.getItem(SS_PLATS)); sessionStorage.removeItem(SS_PLATS);
+    if (p && ['idag', 'monster', 'ovningar'].includes(p.vy)) ui.vy = p.vy;
+    if (p && /^\d{4}-\d\d-\d\d$/.test(p.date) && p.date <= idag()) ui.date = p.date;
+  } catch (e) { /* ingen sparad plats */ }
+
   sakraForslag();
   rita();
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+  /* ---------- ny version ----------
+     Samma mekanism som i Resekartan: appen ska byta till senaste versionen av sig
+     själv när den öppnas, utan att man tvingar fram ett avslut.
+     1. updateViaCache:'none', annars kan sw.js själv serveras ur HTTP-cachen och en
+        ny version upptäcks aldrig.
+     2. Fråga efter ny version varje gång appen kommer i förgrunden.
+     3. Ladda om sidan när den nya service workern tagit över, men bara när inget
+        formulär är öppet. Vy och vald dag följer med över omladdningen. */
+  let vantarNyVersion = false, laddarOm = false;
+  const skriver = () => /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '');
+  function kanskeLaddaOm() {
+    if (!vantarNyVersion || laddarOm || ui.form || ui.redigera || skriver()) return;
+    laddarOm = true;
+    try { sessionStorage.setItem(SS_PLATS, JSON.stringify({ vy: ui.vy, date: ui.date })); } catch (e) { /* utan plats landar man på Idag */ }
+    location.reload();
+  }
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    // Fanns ingen service worker är det första installationen, inget att byta ut
+    const haddeArbetare = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!haddeArbetare) return;
+      vantarNyVersion = true; kanskeLaddaOm();
+    });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        reg.update(); kanskeLaddaOm();
+      });
+      setInterval(() => reg.update(), 15 * 60 * 1000);
+    }).catch(() => {});
+  }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
 })();

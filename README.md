@@ -36,6 +36,6 @@ npx wrangler secret put VAPID_JWK < .vapid.jwk
 
 ## Deploy
 
-Push till `main`, GitHub Pages bygger. Vid ändring: höj `APP_VERSION` i `app.js` och `CACHE` i `sw.js` till samma nummer.
+Push till `main`, GitHub Pages bygger. Vid ändring: höj `APP_VERSION` i `app.js` och `CACHE` i `sw.js` till samma nummer. Det är det ändrade cachenamnet i `sw.js` som gör att telefonen upptäcker den nya versionen: appen frågar efter ny `sw.js` varje gång den kommer i förgrunden och laddar om sig själv när den nya tagit över, så länge inget formulär är öppet.
 
 Öppna frågor finns i `docs/oppna-fragor.md`.
