@@ -4,7 +4,7 @@
    Filen har två halvor: ren logik överst (testas i test/kor.mjs utan webbläsare)
    och rendering nederst (körs bara när det finns ett document). */
 
-const APP_VERSION = 6;
+const APP_VERSION = 7;
 // Påminnelserna skickas av en Cloudflare Worker (se push/). Nyckeln är den publika halvan av
 // VAPID-paret och ska vara samma som VAPID_PUBLIC i push/wrangler.toml.
 const PUSH_URL = 'https://orka-push.tomairaksinen.workers.dev';
@@ -294,7 +294,7 @@ if (typeof document !== 'undefined') (function () {
     <header class="topp"><h1>Orka</h1>
       <p class="datum">${datumText(ui.date)}</p></header>
     ${veckoRutnat()}
-    <section>
+    <section id="hoften">
       <h2>Hur ont gör höften?</h2>
       ${smartRad('pm', arIdag ? 'I morse' : 'Morgon')}
       ${smartRad('pe', arIdag ? 'I kväll' : 'Kväll')}
@@ -413,6 +413,9 @@ if (typeof document !== 'undefined') (function () {
   /* ---------- ram ---------- */
   function rita() {
     $('#vy').innerHTML = ui.vy === 'idag' ? vyIdag() : ui.vy === 'monster' ? vyMonster() : vyOvningar();
+    // Efter en notis ska smärtfrågan kunna ligga överst även om sidan är kort: håll sidan tillräckligt lång
+    const h = ui.franNotis && $('#hoften');
+    $('#vy').style.minHeight = h ? (h.offsetTop + innerHeight) + 'px' : '';
     document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-current', b.dataset.vy === ui.vy ? 'page' : 'false'));
   }
   function sakraForslag() {
@@ -466,11 +469,11 @@ if (typeof document !== 'undefined') (function () {
         .catch(e => pushKlar(e.message));
       return false;
     },
-    dag(b) { ui.date = b.dataset.d; ui.form = null; },
+    dag(b) { ui.date = b.dataset.d; ui.form = null; ui.franNotis = false; },
     oppna(b) { ui.date = b.dataset.d; ui.vy = 'idag'; ui.form = null; scrollTo(0, 0); },
     vecka(b) {
       const d = addDays(ui.date, 7 * b.dataset.n), t = idag();
-      ui.date = d > t ? t : d; ui.form = null;
+      ui.date = d > t ? t : d; ui.form = null; ui.franNotis = false;
     },
     period(b) { ui.monsterSlut = b.dataset.d >= idag() ? null : b.dataset.d; },
     smarta(b) {
@@ -553,7 +556,7 @@ if (typeof document !== 'undefined') (function () {
 
   document.addEventListener('click', ev => {
     const nav = ev.target.closest('nav button');
-    if (nav) { ui.vy = nav.dataset.vy; ui.form = null; ui.redigera = null; ui.pushMsg = null; if (ui.vy === 'idag') sakraForslag(); rita(); scrollTo(0, 0); return; }
+    if (nav) { ui.vy = nav.dataset.vy; ui.form = null; ui.redigera = null; ui.pushMsg = null; ui.franNotis = false; if (ui.vy === 'idag') sakraForslag(); rita(); scrollTo(0, 0); return; }
     const b = ev.target.closest('[data-act]');
     if (!b || b.disabled) return;
     if (AKT[b.dataset.act](b) === false) return;
@@ -591,10 +594,27 @@ if (typeof document !== 'undefined') (function () {
 
   // Tryck på en påminnelse: service workern ber appen visa dagens datum i Idag-vyn
   if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', ev => {
-    if (!ev.data || ev.data.typ !== 'idag') return;
-    settDag = idag(); ui.vy = 'idag'; ui.date = settDag; ui.form = null; ui.redigera = null;
-    sakraForslag(); rita(); scrollTo(0, 0);
+    if (ev.data && ev.data.typ === 'idag') tillHoften();
   });
+  function tillHoften() {
+    settDag = idag(); ui.vy = 'idag'; ui.date = settDag; ui.form = null; ui.redigera = null; ui.franNotis = true;
+    sakraForslag(); rita();
+    $('#hoften').scrollIntoView({ block: 'start' });
+  }
+  /* Var appen stängd när notisen trycktes finns ingen sida att skicka meddelandet
+     till. Service workern lämnar då en tidsstämpel i cachen, som läses här vid start
+     och när appen kommer fram. Två försök, eftersom iOS ibland visar appen innan
+     service workern hunnit skriva. */
+  async function kollaNotisTryck() {
+    try {
+      const c = await caches.open('orka-flagga'), r = await c.match('notis');
+      if (!r) return;
+      await c.delete('notis');
+      if (Date.now() - (+await r.text()) < 20000) tillHoften();
+    } catch (e) { /* utan cache-API finns inget att läsa */ }
+  }
+  const kollaTvaGanger = () => { kollaNotisTryck(); setTimeout(kollaNotisTryck, 1500); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) kollaTvaGanger(); });
 
   // Kommer vi från en omladdning efter uppdatering: tillbaka till samma vy och dag.
   // sessionStorage är tom vid en riktig kallstart, så en gammal plats kan inte spöka.
@@ -606,6 +626,8 @@ if (typeof document !== 'undefined') (function () {
 
   sakraForslag();
   rita();
+  kollaTvaGanger();
+
   /* ---------- ny version ----------
      Samma mekanism som i Resekartan: appen ska byta till senaste versionen av sig
      själv när den öppnas, utan att man tvingar fram ett avslut.

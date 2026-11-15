@@ -1,7 +1,8 @@
 /* Offline-cache. Appens egna filer hämtas nätverket först (så att en ny version
    syns direkt) och faller tillbaka på cachen utan nät. Typsnitten läses cache-först. */
-const CACHE = 'orka-v6';
+const CACHE = 'orka-v7';
 const FONTER = 'orka-fonter';
+const FLAGGA = 'orka-flagga';   // tidsstämpel för senaste tryck på en notis, läses av appen
 const SKAL = ['./', './index.html', './app.js', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -18,7 +19,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== CACHE && k !== FONTER) await caches.delete(k);
+    for (const k of await caches.keys()) if (k !== CACHE && k !== FONTER && k !== FLAGGA) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -38,8 +39,10 @@ self.addEventListener('push', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil((async () => {
+    // Tidsstämpeln är för fallet att appen var stängd: då finns ingen sida att meddela
+    await (await caches.open(FLAGGA)).put('notis', new Response(String(Date.now())));
     const oppna = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    // En app som redan ligger öppen kan stå på en annan dag eller vy: be den gå till i dag
+    // En app som redan ligger öppen kan stå på en annan dag eller vy: be den gå till dagens smärtfråga
     if (oppna.length) { oppna[0].postMessage({ typ: 'idag' }); return oppna[0].focus(); }
     return self.clients.openWindow('./');
   })());
